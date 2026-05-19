@@ -93,6 +93,7 @@ services:
 
   openclaw-cli:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    user: "1001:1001"
     network_mode: "service:openclaw-gateway"
     env_file:
       - path: .env
