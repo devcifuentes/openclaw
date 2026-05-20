@@ -1,7 +1,10 @@
 services:
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
-    build: .
+    build:
+      context: .
+      args:
+        OPENCLAW_DOCKER_APT_PACKAGES: "postgresql-client"
     user: "1001:1001"
     env_file:
       - path: .env
