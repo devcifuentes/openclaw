@@ -1,6 +1,6 @@
 ---
 name: coding-agent
-description: 'Delegate coding tasks to Codex, Claude Code, OpenCode, or Pi agents via immediate background processes. Use when: (1) building or creating features/apps, (2) reviewing PRs in a temp clone/worktree, (3) refactoring large codebases, (4) iterative coding that needs file exploration. NOT for: simple one-line fixes (just edit), reading code (use read tool), thread-bound ACP harness requests in chat (use sessions_spawn with runtime:"acp"), or any work in ~/clawd workspace (never spawn agents here). All coding-agent runs start with background:true immediately. Claude Code: use --print --permission-mode bypassPermissions (no PTY). Codex/Pi/OpenCode: pty:true required. Completion notification must use openclaw message send, not system event/heartbeat.'
+description: 'Delegate coding tasks to Codex, Claude Code, OpenCode, Pi, or Kimi Code CLI agents via immediate background processes. Use when: (1) building or creating features/apps, (2) reviewing PRs in a temp clone/worktree, (3) refactoring large codebases, (4) iterative coding that needs file exploration. NOT for: simple one-line fixes (just edit), reading code (use read tool), thread-bound ACP harness requests in chat (use sessions_spawn with runtime:"acp"), or any work in ~/clawd workspace (never spawn agents here). All coding-agent runs start with background:true immediately. Claude Code: use --print --permission-mode bypassPermissions (no PTY). Codex/Pi/OpenCode: pty:true required. Completion notification must use openclaw message send, not system event/heartbeat.'
 metadata:
   {
     "openclaw":
@@ -8,7 +8,7 @@ metadata:
         "emoji": "🧩",
         "requires":
           {
-            "anyBins": ["claude", "codex", "opencode", "pi"],
+            "anyBins": ["claude", "codex", "opencode", "pi", "kimi"],
             "config": ["skills.entries.coding-agent.enabled"],
           },
         "install":
@@ -26,6 +26,13 @@ metadata:
               "package": "@openai/codex",
               "bins": ["codex"],
               "label": "Install Codex CLI (npm)",
+            },
+            {
+              "id": "node-kimi",
+              "kind": "node",
+              "package": "kimi-cli",
+              "bins": ["kimi"],
+              "label": "Install Kimi Code CLI (npm)",
             },
           ],
       },
@@ -47,12 +54,18 @@ For **Codex, Pi, and OpenCode**, PTY is required:
 bash pty:true background:true command:"codex exec 'Your prompt'"
 ```
 
-For **Claude Code** (`claude` CLI), use `--print --permission-mode bypassPermissions` instead.
-Do not use PTY for Claude Code here.
+For **Claude Code** (`claude` CLI) and **Kimi Code CLI** (`kimi` CLI), use non-PTY flags instead:
+- Claude Code: `--print --permission-mode bypassPermissions`
+- Kimi Code CLI: `do --no-ask`
+
+Do not use PTY for Claude Code or Kimi Code CLI here.
 
 ```bash
 # Correct for Claude Code
 bash background:true command:"claude --permission-mode bypassPermissions --print 'Your task'"
+
+# Correct for Kimi Code CLI
+bash background:true command:"kimi do --no-ask 'Your task'"
 
 # Wrong for Claude Code (PTY, wrong flags, no background)
 bash pty:true command:"claude --dangerously-skip-permissions 'task'"
@@ -205,10 +218,10 @@ Reuse this same notify-route injection block in every example below; only the ta
 
 ```bash
 # Always background immediately
-bash pty:true workdir:~/project background:true command:"codex exec --full-auto 'Build a dark mode toggle'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"codex exec --full-auto 'Build a dark mode toggle'"
 
 # More autonomy
-bash pty:true workdir:~/project background:true command:"codex --yolo 'Refactor the auth module'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"codex --yolo 'Refactor the auth module'"
 ```
 
 ### Reviewing PRs
@@ -236,8 +249,8 @@ bash pty:true workdir:/tmp/pr-130-review background:true command:"codex review -
 ```bash
 git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'
 
-bash pty:true workdir:~/project background:true command:"codex exec 'Review PR #86. git diff origin/main...origin/pr/86'"
-bash pty:true workdir:~/project background:true command:"codex exec 'Review PR #87. git diff origin/main...origin/pr/87'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"codex exec 'Review PR #86. git diff origin/main...origin/pr/86'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"codex exec 'Review PR #87. git diff origin/main...origin/pr/87'"
 
 process action:list
 process action:log sessionId:XXX
@@ -248,7 +261,7 @@ process action:log sessionId:XXX
 ## Claude Code
 
 ```bash
-bash workdir:~/project background:true command:"claude --permission-mode bypassPermissions --print 'Your task'"
+bash workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"claude --permission-mode bypassPermissions --print 'Your task'"
 ```
 
 ---
@@ -256,7 +269,7 @@ bash workdir:~/project background:true command:"claude --permission-mode bypassP
 ## OpenCode
 
 ```bash
-bash pty:true workdir:~/project background:true command:"opencode run 'Your task'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"opencode run 'Your task'"
 ```
 
 ---
@@ -265,13 +278,13 @@ bash pty:true workdir:~/project background:true command:"opencode run 'Your task
 
 ```bash
 # Install: npm install -g @earendil-works/pi-coding-agent
-bash pty:true workdir:~/project background:true command:"pi 'Your task'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"pi 'Your task'"
 
 # Non-interactive mode
-bash pty:true workdir:~/project background:true command:"pi -p 'Summarize src/'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"pi -p 'Summarize src/'"
 
 # Different provider/model
-bash pty:true workdir:~/project background:true command:"pi --provider openai --model gpt-4o-mini -p 'Your task'"
+bash pty:true workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"pi --provider openai --model gpt-4o-mini -p 'Your task'"
 ```
 
 ---
@@ -291,11 +304,20 @@ process action:log sessionId:XXX
 
 ---
 
+## Kimi Code CLI
+
+```bash
+bash workdir:/home/alicia/devproyects/<nombre-proyecto> background:true command:"kimi do --no-ask 'Your task'"
+```
+
+---
+
 ## ⚠️ Rules
 
 1. **Use the right execution mode per agent**:
    - Codex/Pi/OpenCode: `pty:true`
-   - Claude Code: `--print --permission-mode bypassPermissions` (no PTY required)
+   - Claude Code: `--print --permission-mode bypassPermissions`
+   - Kimi Code CLI: `do --no-ask` (no PTY required)
 2. **Respect tool choice** - if user asks for Codex, use Codex.
    - Orchestrator mode: do NOT hand-code patches yourself.
    - If an agent fails/hangs, respawn it or ask the user for direction, but don't silently take over.
@@ -335,6 +357,7 @@ This prevents the user from seeing only a missing reply and having no idea what 
 2. **Use the right execution mode per agent.**
    - Codex/Pi/OpenCode: `pty:true`
    - Claude Code: `--print --permission-mode bypassPermissions`
+   - Kimi Code CLI: `do --no-ask`
 3. **Respect tool choice.**
    - If the user asked for Codex, use Codex.
    - Orchestrator mode: do not hand-code the patch yourself instead of using the requested coding agent.
