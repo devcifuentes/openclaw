@@ -21,6 +21,8 @@ import type {
 import { TOGETHER_BASE_URL } from "./models.js";
 
 const DEFAULT_TOGETHER_VIDEO_MODEL = "Wan-AI/Wan2.2-T2V-A14B";
+const TOGETHER_IMAGE_TO_VIDEO_MODELS = new Set(["Wan-AI/Wan2.2-I2V-A14B"]);
+const TOGETHER_VIDEO_BASE_URL = "https://api.together.xyz/v2";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_ATTEMPTS = 120;
@@ -45,9 +47,18 @@ type TogetherVideoResponse = {
 };
 
 function resolveTogetherVideoBaseUrl(req: VideoGenerationRequest): string {
-  return (
-    normalizeOptionalString(req.cfg?.models?.providers?.together?.baseUrl) ?? TOGETHER_BASE_URL
-  );
+  const configuredBaseUrl = normalizeOptionalString(req.cfg?.models?.providers?.together?.baseUrl);
+  if (
+    !configuredBaseUrl ||
+    stripTrailingSlash(configuredBaseUrl) === stripTrailingSlash(TOGETHER_BASE_URL)
+  ) {
+    return TOGETHER_VIDEO_BASE_URL;
+  }
+  return configuredBaseUrl;
+}
+
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/+$/u, "");
 }
 
 function toDataUrl(buffer: Buffer, mimeType: string): string {
@@ -145,8 +156,9 @@ export function buildTogetherVideoGenerationProvider(): VideoGenerationProvider 
       },
       imageToVideo: {
         enabled: true,
-        maxVideos: 1,
-        maxInputImages: 1,
+        maxInputImagesByModel: {
+          "Wan-AI/Wan2.2-I2V-A14B": 1,
+        },
         maxDurationSeconds: 12,
         supportsSize: true,
       },
@@ -176,7 +188,7 @@ export function buildTogetherVideoGenerationProvider(): VideoGenerationProvider 
       const { baseUrl, allowPrivateNetwork, headers, dispatcherPolicy } =
         resolveProviderHttpRequestConfig({
           baseUrl: resolveTogetherVideoBaseUrl(req),
-          defaultBaseUrl: TOGETHER_BASE_URL,
+          defaultBaseUrl: TOGETHER_VIDEO_BASE_URL,
           allowPrivateNetwork: false,
           defaultHeaders: {
             Authorization: `Bearer ${auth.apiKey}`,
@@ -190,6 +202,7 @@ export function buildTogetherVideoGenerationProvider(): VideoGenerationProvider 
         model: normalizeOptionalString(req.model) ?? DEFAULT_TOGETHER_VIDEO_MODEL,
         prompt: req.prompt,
       };
+      const model = String(body.model);
       if (typeof req.durationSeconds === "number" && Number.isFinite(req.durationSeconds)) {
         body.seconds = String(Math.max(1, Math.round(req.durationSeconds)));
       }
@@ -202,6 +215,11 @@ export function buildTogetherVideoGenerationProvider(): VideoGenerationProvider 
         }
       }
       if (req.inputImages?.[0]) {
+        if (!TOGETHER_IMAGE_TO_VIDEO_MODELS.has(model)) {
+          throw new Error(
+            `Together video model ${model} does not support image reference inputs. Use Wan-AI/Wan2.2-I2V-A14B or omit input images.`,
+          );
+        }
         const input = req.inputImages[0];
         const value = normalizeOptionalString(input.url)
           ? normalizeOptionalString(input.url)

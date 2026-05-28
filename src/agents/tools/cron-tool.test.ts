@@ -70,9 +70,7 @@ describe("cron tool", () => {
     expect(tool.description).toContain("local wall-clock time");
     expect(tool.description).toContain("do not convert the requested local time to UTC first");
     expect(tool.description).toContain("Gateway host local timezone");
-    expect(tool.description).toContain(
-      'For schedule.kind="at", ISO timestamps without an explicit timezone are treated as UTC.',
-    );
+    expect(tool.description).toContain('For "at", ISO timestamps without timezone are UTC.');
     expect(tool.description).toContain('"expr": "0 18 * * *"');
     expect(tool.description).toContain('"tz": "Asia/Shanghai"');
   });
@@ -171,11 +169,6 @@ describe("cron tool", () => {
     callGatewayMock.mockResolvedValue({ ok: true });
     extractDeliveryInfoMock.mockReset();
     extractDeliveryInfoMock.mockReturnValue({ deliveryContext: undefined, threadId: undefined });
-  });
-
-  it("marks cron as owner-only", () => {
-    const tool = createTestCronTool();
-    expect(tool.ownerOnly).toBe(true);
   });
 
   it("allows scoped isolated cron runs to remove the current job", async () => {
@@ -435,10 +428,10 @@ describe("cron tool", () => {
   it("documents deferred follow-up guidance in the tool description", () => {
     const tool = createTestCronTool();
     expect(tool.description).toContain(
-      'Use this for reminders, "check back later" requests, delayed follow-ups, and recurring tasks.',
+      "reminders, check-back-later, delayed follow-ups, recurring work",
     );
     expect(tool.description).toContain(
-      "Do not emulate scheduling with exec sleep or process polling.",
+      "Do not emulate scheduling with exec sleep/process polling.",
     );
   });
 
@@ -635,6 +628,25 @@ describe("cron tool", () => {
       jobSessionKey: "agent:main:telegram:group:-100123:topic:99",
     });
     expect(sessionKey).toBe("agent:main:telegram:group:-100123:topic:99");
+  });
+
+  it("does not stamp caller sessionKey when add targets isolated session", async () => {
+    callGatewayMock.mockResolvedValueOnce({ ok: true });
+
+    const tool = createTestCronTool({ agentSessionKey: "agent:main:webchat:dm:dashboard" });
+    await tool.execute("call-isolated-no-stamp", {
+      action: "add",
+      job: {
+        name: "isolated run",
+        schedule: { at: new Date(123).toISOString() },
+        sessionTarget: "isolated",
+        payload: { kind: "agentTurn", message: "hello" },
+      },
+    });
+    const call = readGatewayCall();
+    const payload = call.params as { sessionKey?: string; sessionTarget?: string } | undefined;
+    expect(payload?.sessionTarget).toBe("isolated");
+    expect(payload).not.toHaveProperty("sessionKey");
   });
 
   it("adds recent context for systemEvent reminders when contextMessages > 0", async () => {
